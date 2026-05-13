@@ -328,7 +328,11 @@ async def _run_by_polygon(request: PolygonRequest, *, use_cache: bool, cache_onl
     saved_area_id = str(request.saved_area_id or "").strip() or None
 
     # --- Phase 2 Chunk 3: global cache read (gated by PHASE_2_CACHE_READ env var) ---
-    if os.environ.get("PHASE_2_CACHE_READ") == "true":
+    # Bug fix 2026-05-13: this block was ignoring the caller's `use_cache` flag,
+    # so the Refresh endpoint (which sets use_cache=False precisely to bypass
+    # cache and re-pull from Propelio) was being silently short-circuited
+    # whenever PHASE_2_CACHE_READ was on. Honor use_cache here too.
+    if use_cache and os.environ.get("PHASE_2_CACHE_READ") == "true":
         try:
             cached_global = load_comps_by_polygon(polygon, saved_area_id)
         except Exception as _exc:
